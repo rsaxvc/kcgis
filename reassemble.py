@@ -22,9 +22,9 @@ for f in files:
 		bbox_lon_max = max( lon, bbox_lon_max );
 		bbox_lon_min = min( lon, bbox_lon_min );
 
-print "BBOX:"
-print bbox_lon_min,bbox_lon_max
-print bbox_lat_min,bbox_lat_max
+#print "BBOX:"
+#print bbox_lon_min,bbox_lon_max
+#print bbox_lat_min,bbox_lat_max
 
 from PIL import Image
 
@@ -44,23 +44,29 @@ def do_stuff(q):
 	q.task_done()
 
 q = Queue(maxsize=100)
-num_threads = 4
-
-for i in range(num_threads):
+import psutil
+for i in range(psutil.cpu_count()):
 	worker = Thread(target=do_stuff, args=(q,))
 	worker.daemon = True
 	worker.start()
 
-rescale = 4
-res_lat = rescale * (bbox_lat_max - bbox_lat_min + 1)
-res_lon = rescale * (bbox_lon_max - bbox_lon_min + 1)
-print "Creating new "+str(res_lon)+"x"+str(res_lat)+" image"
+#Render image
+dlat = bbox_lat_max - bbox_lat_min + 1
+dlon = bbox_lon_max - bbox_lon_min + 1
+print "Source image is "+str(dlon*512)+"x"+str(dlat*512)
+rescale = 64
+res_lat = rescale * dlat
+res_lon = rescale * dlon
 im = Image.new("RGB",(res_lon,res_lat))
-print im
 for i in xrange(1,len(files)):
 	f = './files/'+files[i]
 	q.put( f )
 q.join()
-im.save("bitmap_out2.png")
+while( rescale > 1 ):
+	print "Rescaling to "+str(dlon*rescale)+"x"+str(dlat*rescale)
+	im.save("bitmap_"+str(rescale)+".png")
+	rescale /= 2
+	sz = im.size
+	im.thumbnail((im.size[0]/2,im.size[1]/2))
 im.close()
 
