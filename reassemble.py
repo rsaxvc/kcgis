@@ -58,9 +58,15 @@ rescale = 64
 res_lat = rescale * dlat
 res_lon = rescale * dlon
 im = Image.new("RGB",(res_lon,res_lat))
+nFiles = len(files)
+threshold = 0.0
 for i in xrange(1,len(files)):
-	f = './files/'+files[i]
-	q.put( f )
+	pct = float(i)/nFiles
+	if pct > threshold:
+		print 'Parsing Images ({0}%)\r'.format(int(100*pct)),
+		sys.stdout.flush()
+		threshold += 0.01;
+	q.put( './files/'+files[i] )
 q.join()
 while( rescale > 1 ):
 	print "Rescaling to "+str(dlon*rescale)+"x"+str(dlat*rescale)
