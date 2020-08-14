@@ -6,6 +6,14 @@ import os
 import re
 import sys
 
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument('--minlat', help='minimum latitude in block offsets')
+parser.add_argument('--minlon', help='minimum longitude in block offsets')
+parser.add_argument('--maxlat', help='maximum latitude in block offsets')
+parser.add_argument('--maxlon', help='maximum longitude in block offsets')
+args = parser.parse_args()
+
 files = [f for f in os.listdir('./files') if os.path.isfile('./files/'+f)]
 bbox_lat_min =  sys.maxint
 bbox_lat_max = -sys.maxint
@@ -22,9 +30,17 @@ for f in files:
 		bbox_lon_max = max( lon, bbox_lon_max );
 		bbox_lon_min = min( lon, bbox_lon_min );
 
-#print "BBOX:"
-#print bbox_lon_min,bbox_lon_max
-#print bbox_lat_min,bbox_lat_max
+if args.minlat != None:
+	bbox_lat_min = int(args.minlat)
+if args.minlon != None:
+	bbox_lon_min = int(args.minlon)
+if args.maxlat != None:
+	bbox_lat_max = int(args.maxlat)
+if args.maxlon != None:
+	bbox_lon_max = int(args.maxlon)
+
+print "BBOX LON:",bbox_lon_min,bbox_lon_max
+print "BBOX LAT:",bbox_lat_min,bbox_lat_max
 
 from PIL import Image
 
@@ -35,16 +51,17 @@ def do_stuff(q):
 	if match:
 		lat = int(match.group(1))-bbox_lat_min
 		lon = int(match.group(2))-bbox_lon_min
-		left  = rescale * lon
-		up    = rescale * lat
-		source = Image.open(f).convert("RGBA")
-		source.thumbnail((rescale,rescale))
-		im.paste(source,(left,up))
-		source.close();
+		if lat >= 0 and lat <= bbox_lat_max - bbox_lat_min and lon >= 0 and lon <= bbox_lon_max - bbox_lon_min:
+			left  = rescale * lon
+			up    = rescale * lat
+			source = Image.open(f).convert("RGBA")
+			source.thumbnail((rescale,rescale))
+			im.paste(source,(left,up))
+			source.close();
 	q.task_done()
 
-q = Queue(maxsize=100)
 import psutil
+q = Queue(maxsize=psutil.cpu_count())
 for i in range(psutil.cpu_count()):
 	worker = Thread(target=do_stuff, args=(q,))
 	worker.daemon = True
@@ -68,7 +85,7 @@ for i in xrange(1,len(files)):
 		threshold += 0.01;
 	q.put( './files/'+files[i] )
 q.join()
-while( rescale > 1 ):
+while( rescale > 0 ):
 	print "Rescaling to "+str(dlon*rescale)+"x"+str(dlat*rescale)
 	im.save("bitmap_"+str(rescale)+".png")
 	rescale /= 2
